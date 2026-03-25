@@ -254,6 +254,16 @@ class Read_era5:
         self.cveg_low  = get_variable(self.fsa, 'cvl', s2d)  # Low vegetation cover (-)
         self.cveg_high = get_variable(self.fsa, 'cvh', s2d)  # High vegetation cover (-)
 
+        # Radiation variables:
+        self.ssr   = get_variable(self.fsa, 'ssr'  , s2d)  # Surface net solar radiation (J m**-2)
+        self.ssrc  = get_variable(self.fsa, 'ssrc' , s2d)  # Surface net solar radiation, clear sky (J m**-2)
+        self.str   = get_variable(self.fsa, 'str'  , s2d)  # Surface net thermal radiation (J m**-2)
+        self.strc  = get_variable(self.fsa, 'strc' , s2d)  # Surface net thermal radiation, clear sky (J m**-2)
+        self.ssrdc = get_variable(self.fsa, 'ssrdc', s2d)  # Surface solar radiation downward clear-sky (J m**-2)
+        self.ssrd  = get_variable(self.fsa, 'ssrd' , s2d)  # Surface solar radiation downwards (J m**-2)
+        self.strdc = get_variable(self.fsa, 'strdc', s2d)  # Surface thermal radiation downward clear-sky (J m**-2)
+        self.strd  = get_variable(self.fsa, 'strd' , s2d)  # Surface thermal radiation downwards (J m**-2)
+
         # Soil variables:
         self.T_soil1 = get_variable(self.fsa, 'stl1', s2d)  # Top soil layer temperature (K)
         self.T_soil2 = get_variable(self.fsa, 'stl2', s2d)  # 2nd soil layer temperature (K)
@@ -377,7 +387,8 @@ class Read_era5:
         # Variables averaged from (time, lon, lat) to (time):
         var_3d_mean = [
                 'ps', 'Ts', 'sst', 'wths', 'wqs', 'ps', 'rhos',
-                'lai_low', 'lai_high', 'z0m', 'z0h', 'cveg_low', 'cveg_high']
+                'lai_low', 'lai_high', 'z0m', 'z0h', 'cveg_low', 'cveg_high',
+                'ssr', 'ssrc', 'str', 'strc', 'ssrdc', 'ssrd', 'strdc', 'strd']
         for var in var_3d_mean:
             mean = getattr(self, var)[center3d].mean(axis=(1,2))
             setattr(self, '{}_mean'.format(var), mean)
@@ -673,6 +684,15 @@ class Read_era5:
         add_ds_var(ds, 'ts', self.Ts_mean, ('time'), 'surface (skin) temperature', 'K')
         add_ds_var(ds, 'wth', self.wths_mean, ('time'), 'surface sensible heat flux', 'K m s-1')
         add_ds_var(ds, 'wq', self.wqs_mean, ('time'), 'surface latent heat flux', 'kg kg-1 m s-1')
+
+        add_ds_var(ds, 'ssr'  , self.ssr  , ('time'), 'surface net solar radiation'                 , '(J m**-2)')
+        add_ds_var(ds, 'ssrc' , self.ssrc , ('time'), 'surface net solar radiation, clear sky'      , '(J m**-2)')
+        add_ds_var(ds, 'str'  , self.str  , ('time'), 'surface net thermal radiation'               , '(J m**-2)')
+        add_ds_var(ds, 'strc' , self.strc , ('time'), 'surface net thermal radiation, clear sky'    , '(J m**-2)')
+        add_ds_var(ds, 'ssrdc', self.ssrdc, ('time'), 'surface solar radiation downward clear-sky'  , '(J m**-2)')
+        add_ds_var(ds, 'ssrd' , self.ssrd , ('time'), 'surface solar radiation downwards'           , '(J m**-2)')
+        add_ds_var(ds, 'strdc', self.strdc, ('time'), 'surface thermal radiation downward clear-sky', '(J m**-2)')
+        add_ds_var(ds, 'strd' , self.strd , ('time'), 'surface thermal radiation downwards'         , '(J m**-2)')
 
         # Misc
         ds.attrs['fc'] = self.fc

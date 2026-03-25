@@ -92,7 +92,8 @@ def regrid(nc_file, central_lon, central_lat, resolution):
 
     # Save back.
     ds.close()
-    dsi.to_netcdf(nc_file)
+    dsi.to_netcdf(nc_file+ '.interp')
+    shutil.move(nc_file + '.interp', nc_file)
 
 
 def _download_cams_file(settings, variables, grid):
@@ -105,11 +106,23 @@ def _download_cams_file(settings, variables, grid):
     variables = variables[ftype]
 
     # Read ADS url/key from `.cdsapirc` file.
-    with open(settings['cdsapirc'], 'r') as f:
-        credentials = yaml.safe_load(f)
+    credentials = { 'url_ads': 'https://ads.atmosphere.copernicus.eu/api' }
+    try:
+        if 'cdsapirc' not in settings:
+            cdsapirc = '~/.cdsapirc'
+        else:
+            cdsapirc = settings['cdsapirc']
+        with open(cdsapirc, 'r') as f:
+            credentials.update(yaml.safe_load(f))
+    except Exception:
+        pass
+    if 'cds_url_ads' in settings:
+        credentials['url_ads'] = settings['cds_url_ads']
+    if 'cds_key_ads' in settings:
+        credentials['key_ads'] = settings['cds_key_ads']
 
-    if 'url_ads' not in credentials.keys() or 'key_ads' not in credentials:
-        error('You need to specify `url_ads` and `key_ads` in your `.cdsapirc` file!')
+    if 'key_ads' not in credentials:
+        error('You need to check `cds_key_ads` and `cdsapirc` settings!')
 
     # Keep track of CDS downloads which are finished:
     finished = False
@@ -312,4 +325,4 @@ def download_cams(settings, variables, grid=None):
         print(' | at any time to retry, or download the results.             |')
         print(' --------------------------------------------------------------')
 
-        sys.exit(1)
+    return finished

@@ -188,6 +188,7 @@ class Read_cams:
         message(f'Averaging CAMS over a {dlon:.2f}°×{dlat:.2f}° spatial area.')
 
         # Slice out averaging sub-domain, and calculate mean over sub-domain.
+        real_ds_ml = self.ds_ml
         self.ds_ml = self.ds_ml.isel(longitude=slice(ic-n_av, ic+n_av+1), latitude=slice(jc-n_av, jc+n_av+1))
 
         # Calculate Spatial mean over requested area.
@@ -233,5 +234,5 @@ class Read_cams:
         # Calculate time in seconds since start of LES.
         date = self.ds_les.time.values
         self.ds_les['time_sec'] = (date - date[0]).astype(np.float32) * 1e-9
-
+        self.ds_ml = real_ds_ml  # Restore original dataset with full spatial dimensions, since we might need it later for chemistry profiles, etc.
         return self.ds_les

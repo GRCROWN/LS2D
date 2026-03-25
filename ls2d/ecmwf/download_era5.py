@@ -106,6 +106,25 @@ def _download_era5_file(settings):
 
     header('Downloading: {} - {}'.format(settings['date'], settings['ftype']))
 
+    # Read CDS url/key from `.cdsapirc` file.
+    credentials = { 'url': 'https://cds.climate.copernicus.eu/api' }
+    try:
+        if 'cdsapirc' not in settings:
+            cdsapirc = '~/.cdsapirc'
+        else:
+            cdsapirc = settings['cdsapirc']
+        with open(cdsapirc, 'r') as f:
+            credentials.update(yaml.safe_load(f))
+    except Exception:
+        pass
+    if 'cds_url' in settings:
+        credentials['url'] = settings['cds_url']
+    if 'cds_key' in settings:
+        credentials['key'] = settings['cds_key']
+
+    if 'key' not in credentials:
+        error('You need to check `cds_key` and `cdsapirc` settings!')
+
     # Keep track of CDS downloads which are finished:
     finished = False
 
@@ -178,7 +197,13 @@ def _download_era5_file(settings):
             message('No previous CDS request, submitting new one')
 
             # Create instance of CDS API
-            server = cdsapi.Client(wait_until_complete=False, delete=False)
+            server = cdsapi.Client(
+                url=credentials['url'],
+                key=credentials['key'],
+                verify=True,
+                wait_until_complete=False,
+                delete=False
+            )
 
             # Surface and pressure level analysis, stored on HDs, so downloads are fast :-)
             if settings['ftype'] == 'pressure_an' or settings['ftype'] == 'surface_an':

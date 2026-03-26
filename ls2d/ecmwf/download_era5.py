@@ -106,25 +106,6 @@ def _download_era5_file(settings):
 
     header('Downloading: {} - {}'.format(settings['date'], settings['ftype']))
 
-    # Read CDS url/key from `.cdsapirc` file.
-    credentials = { 'url': 'https://cds.climate.copernicus.eu/api' }
-    try:
-        if 'cdsapirc' not in settings:
-            cdsapirc = '~/.cdsapirc'
-        else:
-            cdsapirc = settings['cdsapirc']
-        with open(cdsapirc, 'r') as f:
-            credentials.update(yaml.safe_load(f))
-    except Exception:
-        pass
-    if 'cds_url' in settings:
-        credentials['url'] = settings['cds_url']
-    if 'cds_key' in settings:
-        credentials['key'] = settings['cds_key']
-
-    if 'key' not in credentials:
-        error('You need to check `cds_key` and `cdsapirc` settings!')
-
     # Keep track of CDS downloads which are finished:
     finished = False
 
@@ -181,7 +162,7 @@ def _download_era5_file(settings):
 
                     cds_request.download(nc_file)
                     f.close()
-                    os.remove(pickle_file)
+                    # os.remove(pickle_file)
 
                     # Patch NetCDF file, to make the (+/-) identical to the old CDS
                     # files, and files retrieved from MARS.
@@ -196,6 +177,11 @@ def _download_era5_file(settings):
                 elif state in ('queued', 'accepted', 'running'):
                     message('Request not finished, current status = "{}"'.format(state))
 
+                elif state in ('expired'):
+                    message('Request expired, submitting new one')
+                    os.remove(pickle_file)
+                    _download_era5_file(settings)
+
                 else:
                     error('Request failed, status = "{}"'.format(state), exit=False)
                     message('Error message = {}'.format(cds_request.reply['error'].get('message')))
@@ -203,6 +189,26 @@ def _download_era5_file(settings):
 
         else:
             message('No previous CDS request, submitting new one')
+
+
+            # Read CDS url/key from `.cdsapirc` file.
+            credentials = { 'url': 'https://cds.climate.copernicus.eu/api' }
+            try:
+                if 'cdsapirc' not in settings:
+                    cdsapirc = '~/.cdsapirc'
+                else:
+                    cdsapirc = settings['cdsapirc']
+                with open(cdsapirc, 'r') as f:
+                    credentials.update(yaml.safe_load(f))
+            except Exception:
+                pass
+            if 'cds_url' in settings:
+                credentials['url'] = settings['cds_url']
+            if 'cds_key' in settings:
+                credentials['key'] = settings['cds_key']
+
+            if 'key' not in credentials:
+                error('You need to check `cds_key` and `cdsapirc` settings!')
 
             # Create instance of CDS API
             server = cdsapi.Client(

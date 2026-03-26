@@ -61,6 +61,9 @@ def patch_netcdf(nc_file_path):
     # does not support variable length strings.
     if 'expver' in ds.variables:
         ds = ds.drop('expver')
+    
+    if 'number' in ds.variables:
+        ds = ds.drop('number')
 
     file_name = os.path.basename(nc_file_path)
 
@@ -73,7 +76,7 @@ def patch_netcdf(nc_file_path):
         # Yeah, somehow they thought it was a good idea to reverse the pressure levels......
         new_ds = new_ds.reindex(level=new_ds.level[::-1])
 
-    elif file_name in ['surface_an.nc', 'eac4_sfc.nc', 'egg4_sfc.nc', 'egg4_sl.nc']:
+    elif file_name in ['surface_an.nc', 'surfacc_an.nc', 'eac4_sfc.nc', 'egg4_sfc.nc', 'egg4_sl.nc']:
         new_ds = ds.rename({'valid_time': 'time'})
 
     else:
@@ -187,7 +190,8 @@ def regrid_netcdf(nc_file, central_lon, central_lat, resolution):
 
     # Save back.
     ds.close()
-    dsi.to_netcdf(nc_file, format='NETCDF4_CLASSIC')
+    dsi.to_netcdf(nc_file + '.regrid', format='NETCDF4_CLASSIC')
+    shutil.move(nc_file + '.regrid', nc_file)
 
 
 if __name__ == '__main__':

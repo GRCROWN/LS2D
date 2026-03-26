@@ -46,56 +46,6 @@ except ImportError:
     cdsapi = None
 
 
-def regrid(nc_file, central_lon, central_lat, resolution):
-    """
-    Re-grid regular lat/lon NetCDF file (like ERA5 or CAMS)
-    onto new grid / resolution. Note: this function
-    overwrites the original `nc_file`.
-
-    Arguments:
-        nc_file : str
-            Path to NetCDF file.
-        central_lon : float
-            Central longitude of new grid
-        central_lat : float
-            Central latitude of new grid
-        resolution : float
-            New output resolution
-    """
-
-    shutil.copyfile(nc_file, nc_file + '.orig_grid')
-
-    ds = xr.open_dataset(nc_file)
-
-    # Find start/end lon/lat to stay within bounds of input dataset.
-    lon_frac = np.abs((ds.longitude.values - central_lon) / resolution)
-    lat_frac = np.abs((ds.latitude.values  - central_lat) / resolution)
-
-    # The longitude conversion above results in some minor floating point inaccuracies.
-    lon_frac = np.round(lon_frac, 6)
-    lat_frac = np.round(lat_frac, 6)
-
-    lon_0 = central_lon - np.floor(lon_frac[0 ]) * resolution
-    lon_1 = central_lon + np.floor(lon_frac[-1]) * resolution
-
-    lat_0 = central_lat - np.floor(lat_frac[0 ]) * resolution
-    lat_1 = central_lat + np.floor(lat_frac[-1]) * resolution
-
-    lon_out = np.arange(lon_0, lon_1+1e-12, resolution)
-    lat_out = np.arange(lat_0, lat_1+1e-12, resolution)
-
-    # Interpolate. Extrapolation is necessary if the first or last
-    # new coordinate is exactly equal to the start/end coordinate
-    # of the input NetCDF file. Otherwise, those values are set to
-    # NaN (no idea why....).
-    dsi = ds.interp(longitude=lon_out, latitude=lat_out, kwargs={'fill_value': 'extrapolate'})
-
-    # Save back.
-    ds.close()
-    dsi.to_netcdf(nc_file+ '.interp')
-    shutil.move(nc_file + '.interp', nc_file)
-
-
 def _download_cams_file(settings, variables, grid):
     """
     Download single CAMS file.
@@ -103,26 +53,6 @@ def _download_cams_file(settings, variables, grid):
     header('Downloading: {} - {}'.format(settings['date'], settings['ftype']))
 
     ftype = settings['ftype']
-    variables = variables[ftype]
-
-    # Read ADS url/key from `.cdsapirc` file.
-    credentials = { 'url_ads': 'https://ads.atmosphere.copernicus.eu/api' }
-    try:
-        if 'cdsapirc' not in settings:
-            cdsapirc = '~/.cdsapirc'
-        else:
-            cdsapirc = settings['cdsapirc']
-        with open(cdsapirc, 'r') as f:
-            credentials.update(yaml.safe_load(f))
-    except Exception:
-        pass
-    if 'cds_url_ads' in settings:
-        credentials['url_ads'] = settings['cds_url_ads']
-    if 'cds_key_ads' in settings:
-        credentials['key_ads'] = settings['cds_key_ads']
-
-    if 'key_ads' not in credentials:
-        error('You need to check `cds_key_ads` and `cdsapirc` settings!')
 
     # Keep track of CDS downloads which are finished:
     finished = False
@@ -174,7 +104,7 @@ def _download_cams_file(settings, variables, grid):
                 message('Request finished, downloading NetCDF file')
 
                 cds_request.download(nc_file)
-                os.remove(pickle_file)
+                # os.remove(pickle_file)
 
                 # Patch NetCDF files to match the old CDS/ADS format.
                 patch_netcdf(nc_file)
@@ -186,13 +116,17 @@ def _download_cams_file(settings, variables, grid):
 
                 if grid is not None:
                     message(f'Re-gridding NetCDF to {grid:.2f}°×{grid:.2f}° degree grid.')
-                    regrid(nc_file, settings['central_lon'], settings['central_lat'], grid)
+                    regrid_netcdf(nc_file, settings['central_lon'], settings['central_lat'], grid)
 
                 finished = True
 
             elif state in ('accepted', 'queued', 'running'):
                 message('Request not finished, current status = "{}"'.format(state))
-
+            
+            elif state in ('expired'):
+                message('Request expired, submitting new one')
+                os.remove(pickle_file)
+                _download_cams_file(settings, variables, grid)
             else:
                 error('Request failed, status = "{}"'.format(state), exit=False)
                 message('Error message = {}'.format(cds_request.reply['error'].get('message')))
@@ -200,6 +134,27 @@ def _download_cams_file(settings, variables, grid):
 
     else:
         message('No previous CDS request, submitting new one')
+
+        variables = variables[ftype]
+
+        # Read ADS url/key from `.cdsapirc` file.
+        credentials = { 'url_ads': 'https://ads.atmosphere.copernicus.eu/api' }
+        try:
+            if 'cdsapirc' not in settings:
+                cdsapirc = '~/.cdsapirc'
+            else:
+                cdsapirc = settings['cdsapirc']
+            with open(cdsapirc, 'r') as f:
+                credentials.update(yaml.safe_load(f))
+        except Exception:
+            pass
+        if 'cds_url_ads' in settings:
+            credentials['url_ads'] = settings['cds_url_ads']
+        if 'cds_key_ads' in settings:
+            credentials['key_ads'] = settings['cds_key_ads']
+
+        if 'key_ads' not in credentials:
+            error('You need to check `cds_key_ads` and `cdsapirc` settings!')
 
         # Create instance of CDS API
         server = cdsapi.Client(

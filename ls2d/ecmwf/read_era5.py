@@ -99,6 +99,9 @@ class Read_era5:
         an_sfc_files = [
             era_tools.era5_file_path(d.year, d.month, d.day, path, case, 'surface_an', False) for d in an_dates
         ]
+        an_sfcacc_files =[
+            era_tools.era5_file_path(d.year, d.month, d.day, path, case, 'surfacc_an', False) for d in an_dates
+        ]
         an_model_files = [
             era_tools.era5_file_path(d.year, d.month, d.day, path, case, 'model_an', False) for d in an_dates
         ]
@@ -117,6 +120,7 @@ class Read_era5:
 
         files_missing = False
         files_missing += check_files(an_sfc_files)
+        files_missing += check_files(an_sfcacc_files)
         files_missing += check_files(an_model_files)
         files_missing += check_files(an_pres_files)
         if files_missing:
@@ -125,16 +129,17 @@ class Read_era5:
         # Check if files are from new CDS, which require patching.
         # This is only a fallback option, in case someone has unpatched NetCDF files.
         # The patching is now automatically done after downloading the files.
-        for f in an_sfc_files + an_model_files + an_pres_files:
+        for f in an_sfc_files + an_sfcacc_files + an_model_files + an_pres_files:
             ds = xr.open_dataset(f)
             if 'valid_time' in ds.dims:
                 ds.close()
                 patch_netcdf(f)
 
         # Open NetCDF files: MFDataset automatically merges the files / time dimensions
-        self.fsa = nc4.MFDataset(an_sfc_files, aggdim='time')
-        self.fma = nc4.MFDataset(an_model_files, aggdim='time')
-        self.fpa = nc4.MFDataset(an_pres_files, aggdim='time')
+        self.fsa  = nc4.MFDataset(an_sfc_files, aggdim='time')
+        self.fsac = nc4.MFDataset(an_sfcacc_files, aggdim='time')
+        self.fma  = nc4.MFDataset(an_model_files, aggdim='time')
+        self.fpa  = nc4.MFDataset(an_pres_files, aggdim='time')
 
     def read_data(self):
         """
@@ -254,14 +259,14 @@ class Read_era5:
         self.cveg_high = get_variable(self.fsa, 'cvh', s2d)  # High vegetation cover (-)
 
         # Radiation variables:
-        self.ssr   = get_variable(self.fsa, 'ssr'  , s2d)  # Surface net solar radiation (J m**-2)
-        self.ssrc  = get_variable(self.fsa, 'ssrc' , s2d)  # Surface net solar radiation, clear sky (J m**-2)
-        self.str   = get_variable(self.fsa, 'str'  , s2d)  # Surface net thermal radiation (J m**-2)
-        self.strc  = get_variable(self.fsa, 'strc' , s2d)  # Surface net thermal radiation, clear sky (J m**-2)
-        self.ssrdc = get_variable(self.fsa, 'ssrdc', s2d)  # Surface solar radiation downward clear-sky (J m**-2)
-        self.ssrd  = get_variable(self.fsa, 'ssrd' , s2d)  # Surface solar radiation downwards (J m**-2)
-        self.strdc = get_variable(self.fsa, 'strdc', s2d)  # Surface thermal radiation downward clear-sky (J m**-2)
-        self.strd  = get_variable(self.fsa, 'strd' , s2d)  # Surface thermal radiation downwards (J m**-2)
+        self.ssr   = get_variable(self.fsac, 'ssr'  , s2d)  # Surface net solar radiation (J m**-2)
+        self.ssrc  = get_variable(self.fsac, 'ssrc' , s2d)  # Surface net solar radiation, clear sky (J m**-2)
+        self.str   = get_variable(self.fsac, 'str'  , s2d)  # Surface net thermal radiation (J m**-2)
+        self.strc  = get_variable(self.fsac, 'strc' , s2d)  # Surface net thermal radiation, clear sky (J m**-2)
+        self.ssrdc = get_variable(self.fsac, 'ssrdc', s2d)  # Surface solar radiation downward clear-sky (J m**-2)
+        self.ssrd  = get_variable(self.fsac, 'ssrd' , s2d)  # Surface solar radiation downwards (J m**-2)
+        self.strdc = get_variable(self.fsac, 'strdc', s2d)  # Surface thermal radiation downward clear-sky (J m**-2)
+        self.strd  = get_variable(self.fsac, 'strd' , s2d)  # Surface thermal radiation downwards (J m**-2)
 
         # Soil variables:
         self.T_soil1 = get_variable(self.fsa, 'stl1', s2d)  # Top soil layer temperature (K)

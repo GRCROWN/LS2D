@@ -101,7 +101,7 @@ def _download_era5_file(settings):
                 size : download an area of lat+/-size, lon+/-size (degrees)
                 path : absolute or relative path to save the NetCDF data
                 case : case name used in file name of NetCDF files
-                ftype : level/forecast/analysis switch (in: [model_an, model_fc, pressure_an, surface_an])
+                ftype : level/forecast/analysis switch (in: [model_an, model_fc, pressure_an, surface_an, surfacc_an])
     """
 
     header('Downloading: {} - {}'.format(settings['date'], settings['ftype']))
@@ -188,7 +188,7 @@ def _download_era5_file(settings):
                     patch_netcdf(nc_file)
 
                     # Interpolate to requested grid, to stay in line with downloads before March 2026.
-                    if settings['ftype'] in ('surface_an', 'pressure_an'):
+                    if settings['ftype'] in ('surface_an', 'pressure_an', 'surfacc_an'):
                         regrid_netcdf(nc_file, settings['central_lon'], settings['central_lat'], resolution=0.25)
 
                     finished = True
@@ -214,7 +214,7 @@ def _download_era5_file(settings):
             )
 
             # Surface and pressure level analysis, stored on HDs, so downloads are fast :-)
-            if settings['ftype'] == 'pressure_an' or settings['ftype'] == 'surface_an':
+            if settings['ftype'] == 'pressure_an' or settings['ftype'] == 'surface_an' or settings['ftype'] == 'surfacc_an':
                 analysis_times = ['{0:02d}:00'.format(i) for i in range(24)]
 
                 # Add +/- 1 grid point to pressure and surface files, required for interpolations.
@@ -280,28 +280,10 @@ def _download_era5_file(settings):
                     request.update(
                         {
                             'variable': [
-                                'clear_sky_direct_solar_radiation_at_surface',
-                                'downward_uv_radiation_at_the_surface',
                                 # 'forecast_logarithm_of_surface_roughness_for_heat',
                                 # 'instantaneous_surface_sensible_heat_flux',
                                 'near_ir_albedo_for_diffuse_radiation',
                                 'near_ir_albedo_for_direct_radiation',
-                                'surface_latent_heat_flux',
-                                'surface_net_solar_radiation',
-                                'surface_net_solar_radiation_clear_sky',
-                                'surface_net_thermal_radiation',
-                                'surface_net_thermal_radiation_clear_sky',
-                                'surface_sensible_heat_flux',
-                                'surface_solar_radiation_downward_clear_sky',
-                                'surface_solar_radiation_downwards',
-                                'surface_thermal_radiation_downward_clear_sky',
-                                'surface_thermal_radiation_downwards',
-                                'toa_incident_solar_radiation',
-                                'top_net_solar_radiation',
-                                'top_net_solar_radiation_clear_sky',
-                                'top_net_thermal_radiation',
-                                'top_net_thermal_radiation_clear_sky',
-                                'total_sky_direct_solar_radiation_at_surface',
                                 'uv_visible_albedo_for_diffuse_radiation',
                                 'uv_visible_albedo_for_direct_radiation',
                                 'instantaneous_moisture_flux',
@@ -330,6 +312,32 @@ def _download_era5_file(settings):
                         }
                     )
 
+                    cds_request = server.retrieve('reanalysis-era5-single-levels', request)
+                elif settings['ftype'] == 'surfacc_an':
+                    request.update(
+                        {
+                            'variable': [
+                                'clear_sky_direct_solar_radiation_at_surface',
+                                'downward_uv_radiation_at_the_surface',
+                                'surface_latent_heat_flux',
+                                'surface_net_solar_radiation',
+                                'surface_net_solar_radiation_clear_sky',
+                                'surface_net_thermal_radiation',
+                                'surface_net_thermal_radiation_clear_sky',
+                                'surface_sensible_heat_flux',
+                                'surface_solar_radiation_downward_clear_sky',
+                                'surface_solar_radiation_downwards',
+                                'surface_thermal_radiation_downward_clear_sky',
+                                'surface_thermal_radiation_downwards',
+                                'toa_incident_solar_radiation',
+                                'top_net_solar_radiation',
+                                'top_net_solar_radiation_clear_sky',
+                                'top_net_thermal_radiation',
+                                'top_net_thermal_radiation_clear_sky',
+                                'total_sky_direct_solar_radiation_at_surface',
+                            ]
+                        }
+                    )
                     cds_request = server.retrieve('reanalysis-era5-single-levels', request)
 
             # Model level analysis, stored in tape archive, so downloads are VERY slow :-(
@@ -410,7 +418,7 @@ def _download_era5_file(settings):
                 }
             )
 
-        elif settings['ftype'] == 'surface_an':
+        elif settings['ftype'] == 'surface_an' or settings['ftype'] == 'surfacc_an':
             qos = 'nf'
             request.update(
                 {
@@ -495,7 +503,7 @@ def download_era5(settings, exit_when_waiting=True):
     # Loop over all required files, check if there is a local version, if not add to download queue
     # Analysis files:
     for date in an_dates:
-        for ftype in ['model_an', 'pressure_an', 'surface_an']:
+        for ftype in ['model_an', 'pressure_an', 'surface_an', 'surfacc_an']:
             if ftype not in blacklist:
                 era_dir, era_file = era_tools.era5_file_path(
                     date.year,

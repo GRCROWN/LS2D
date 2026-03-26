@@ -60,10 +60,10 @@ def patch_netcdf(nc_file_path):
     # Drop `expver`; we need to save this file in classic NetCDF4 format, which
     # does not support variable length strings.
     if 'expver' in ds.variables:
-        ds = ds.drop('expver')
+        ds = ds.drop_vars('expver')
     
     if 'number' in ds.variables:
-        ds = ds.drop('number')
+        ds = ds.drop_vars('number')
 
     file_name = os.path.basename(nc_file_path)
 

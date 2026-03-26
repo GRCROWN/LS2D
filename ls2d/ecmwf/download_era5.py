@@ -129,10 +129,12 @@ def _download_era5_file(settings):
         sys.stderr = open(err_file, 'w')
 
     # Bounds of domain
-    lat_n = settings['central_lat'] + settings['area_size']
-    lat_s = settings['central_lat'] - settings['area_size']
-    lon_w = settings['central_lon'] - settings['area_size']
-    lon_e = settings['central_lon'] + settings['area_size']
+    # Add +/- 1 grid point to pressure and surface files, required for interpolations.
+    pad = 0.25
+    lat_n = settings['central_lat'] + settings['area_size'] + pad
+    lat_s = settings['central_lat'] - settings['area_size'] - pad
+    lon_w = settings['central_lon'] - settings['area_size'] - pad
+    lon_e = settings['central_lon'] + settings['area_size'] + pad
 
     # Monitor the required download time
     start = datetime.datetime.now()
@@ -169,7 +171,7 @@ def _download_era5_file(settings):
                     patch_netcdf(nc_file)
 
                     # Interpolate to requested grid, to stay in line with downloads before March 2026.
-                    if settings['ftype'] in ('surface_an', 'pressure_an', 'surfacc_an'):
+                    if settings['ftype'] in ('surface_an', 'pressure_an', 'surfacc_an', 'model_an'):
                         regrid_netcdf(nc_file, settings['central_lon'], settings['central_lat'], resolution=0.25)
 
                     finished = True
@@ -222,10 +224,7 @@ def _download_era5_file(settings):
             # Surface and pressure level analysis, stored on HDs, so downloads are fast :-)
             if settings['ftype'] == 'pressure_an' or settings['ftype'] == 'surface_an' or settings['ftype'] == 'surfacc_an':
                 analysis_times = ['{0:02d}:00'.format(i) for i in range(24)]
-
-                # Add +/- 1 grid point to pressure and surface files, required for interpolations.
-                pad = 0.25
-                area = [lat_n + pad, lon_w - pad, lat_s - pad, lon_e + pad]
+                area = [lat_n , lon_w , lat_s, lon_e]
 
                 request = {
                     'product_type': 'reanalysis',
